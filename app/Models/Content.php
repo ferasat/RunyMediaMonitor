@@ -12,7 +12,7 @@ class Content extends Model
 
     protected $fillable = [
         'source_id', 'external_id', 'title', 'body', 'caption',
-        'canonical_url', 'content_hash', 'media_type', 'published_at', 'metadata',
+        'canonical_url', 'media_url', 'media_path', 'content_hash', 'media_type', 'published_at', 'metadata',
     ];
 
     protected $casts = [

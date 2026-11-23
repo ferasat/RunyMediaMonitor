@@ -49,7 +49,10 @@
                 <td>{{ $c->source->name ?? '-' }}</td>
                 <td>{{ $c->media_type }}</td>
                 <td>{{ $c->published_at }}</td>
-                <td>@if($c->canonical_url)<a href="{{ $c->canonical_url }}" target="_blank">باز کردن</a>@endif</td>
+                <td>
+                    @if($c->media_url)<a href="{{ $c->media_url }}" download class="btn btn-sm btn-success">دانلود</a>@endif
+                    @if($c->canonical_url)<a href="{{ $c->canonical_url }}" target="_blank" class="btn btn-sm btn-outline-secondary">باز کردن</a>@endif
+                </td>
             </tr>
         @endforeach
         </tbody>

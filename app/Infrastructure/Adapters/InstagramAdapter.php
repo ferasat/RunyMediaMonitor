@@ -32,6 +32,7 @@ class InstagramAdapter implements SourceAdapter
                 'published_at' => now()->toIso8601String(),
                 'media_type' => 'image',
                 'thumbnail' => null,
+                'media_url' => 'https://example.com/media/sample.jpg',
             ],
         ];
     }

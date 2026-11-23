@@ -54,6 +54,8 @@ class FetchContentJob implements ShouldQueue
                 'body' => $item['description'] ?? null,
                 'caption' => $item['caption'] ?? null,
                 'canonical_url' => $url,
+                'media_url' => $item['media_url'] ?? null,
+                'media_path' => $item['media_path'] ?? null,
                 'content_hash' => $hash,
                 'media_type' => $item['media_type'] ?? 'unknown',
                 'published_at' => ! empty($item['published_at']) ? date('Y-m-d H:i:s', strtotime($item['published_at'])) : null,
