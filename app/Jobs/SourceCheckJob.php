@@ -23,12 +23,20 @@ class SourceCheckJob implements ShouldQueue
     {
         $this->source->update(['last_checked_at' => now()]);
 
+        $log = \App\Models\SourceCheckLog::create([
+            'source_id' => $this->source->id,
+            'status' => 'running',
+            'started_at' => now(),
+        ]);
+
         try {
             // Adapter resolution + discovery will be wired in Phase 2+.
             Log::info('Source checked', ['source_id' => $this->source->id, 'type' => $this->source->type]);
             $this->source->update(['last_successful_check_at' => now(), 'last_error' => null]);
+            $log->update(['status' => 'success', 'finished_at' => now()]);
         } catch (\Throwable $e) {
             $this->source->update(['last_error' => $e->getMessage()]);
+            $log->update(['status' => 'failed', 'error_message' => $e->getMessage(), 'finished_at' => now()]);
             throw $e;
         }
     }
