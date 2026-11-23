@@ -9,7 +9,7 @@ class RssParser
     {
         $items = [];
         try {
-            $doc = new \SimpleXMLElement($xml);
+            $doc = @new \SimpleXMLElement($xml);
             // RSS 2.0
             if (isset($doc->channel->item)) {
                 foreach ($doc->channel->item as $item) {
