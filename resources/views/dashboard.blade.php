@@ -24,7 +24,7 @@
     </div>
 
     <h3>منابع ({{ $sources->count() }})</h3>
-    <table class="table table-striped">
+    <table class="table table-striped mb-4">
         <thead><tr><th>نام</th><th>نوع</th><th>URL</th><th>فعال</th><th>آخرین بررسی</th></tr></thead>
         <tbody>
         @foreach($sources as $s)
@@ -34,6 +34,22 @@
                 <td>{{ $s->url }}</td>
                 <td>{{ $s->is_active ? 'بله' : 'خیر' }}</td>
                 <td>{{ $s->last_checked_at }}</td>
+            </tr>
+        @endforeach
+        </tbody>
+    </table>
+
+    <h3>محتوای رصد شده ({{ $contents->count() }})</h3>
+    <table class="table table-striped">
+        <thead><tr><th>عنوان</th><th>منبع</th><th>نوع</th><th>انتشار</th><th>لینک</th></tr></thead>
+        <tbody>
+        @foreach($contents as $c)
+            <tr>
+                <td>{{ $c->title }}</td>
+                <td>{{ $c->source->name ?? '-' }}</td>
+                <td>{{ $c->media_type }}</td>
+                <td>{{ $c->published_at }}</td>
+                <td>@if($c->canonical_url)<a href="{{ $c->canonical_url }}" target="_blank">باز کردن</a>@endif</td>
             </tr>
         @endforeach
         </tbody>

@@ -1,11 +1,15 @@
 <?php
 
+use App\Models\Content;
 use App\Models\Source;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
-    return view('dashboard', ['sources' => Source::latest()->get()]);
+    return view('dashboard', [
+        'sources' => Source::latest()->get(),
+        'contents' => Content::with('source')->latest()->get(),
+    ]);
 });
 
 Route::post('/sources', function (Request $request) {
