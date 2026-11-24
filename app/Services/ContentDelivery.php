@@ -34,7 +34,13 @@ class ContentDelivery
         } catch (\Throwable $e) {
             $content->update(['status' => 'failed', 'error_message' => mb_substr($e->getMessage(), 0, 1000)]);
             Log::warning('rmm delivery failed', ['content_id' => $content->id, 'error' => $e->getMessage()]);
-            if ($content->attempts >= 3) {
+            if ($content->source?->isManual()) {
+                try {
+                    $this->bale->sendMessage("❌ دانلود ناموفق بود (#{$content->id}):\n{$content->canonical_url}\n"
+                        .ManualDownloads::persianError($e->getMessage())."\n".mb_substr($e->getMessage(), 0, 300), $chatId);
+                } catch (\Throwable) {
+                }
+            } elseif ($content->attempts >= 3) {
                 try {
                     $this->bale->sendMessage("⚠️ دریافت پست ناموفق بود ({$content->source->name}):\n{$content->canonical_url}\n"
                         .mb_substr($e->getMessage(), 0, 400), $chatId);

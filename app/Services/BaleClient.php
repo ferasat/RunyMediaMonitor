@@ -33,6 +33,22 @@ class BaleClient
         return $this->check($method, $res);
     }
 
+    /** Long-poll for updates (offset = last update_id + 1). */
+    public function getUpdates(int $offset, int $timeout = 25): array
+    {
+        $res = Http::timeout($timeout + 15)->asForm()->post($this->url('getUpdates'), array_filter([
+            'offset' => $offset ?: null, 'timeout' => $timeout, 'limit' => 20,
+        ]));
+        return $this->check('getUpdates', $res);
+    }
+
+    public function reply(string $chatId, string $text, ?int $replyTo = null): array
+    {
+        return $this->call('sendMessage', array_filter([
+            'chat_id' => $chatId, 'text' => mb_substr($text, 0, 4000), 'reply_to_message_id' => $replyTo,
+        ]));
+    }
+
     public function sendMessage(string $text, ?string $chatId = null): array
     {
         return $this->call('sendMessage', ['chat_id' => $chatId ?? $this->chatId(), 'text' => mb_substr($text, 0, 4000)]);

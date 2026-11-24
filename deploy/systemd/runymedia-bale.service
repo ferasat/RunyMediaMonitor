@@ -1,0 +1,21 @@
+[Unit]
+Description=RunyMediaMonitor Bale bot long-polling (/new_link and links from the owner)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/runymedia
+Environment=PHP_INI_SCAN_DIR=:/opt/runymedia/php/conf.d
+ExecStart=/usr/bin/php8.5 artisan rmm:bale-poll --max-time=3600
+Restart=always
+RestartSec=5
+Nice=10
+CPUQuota=25%
+MemoryMax=192M
+TasksMax=16
+UMask=0027
+
+[Install]
+WantedBy=multi-user.target
