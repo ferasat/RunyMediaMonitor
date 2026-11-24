@@ -6,6 +6,7 @@ use App\Models\Content;
 use App\Models\ContentFile;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Log;
+use App\Support\Jalali;
 use Illuminate\Support\Str;
 
 /** Download a content item's media to the server, then deliver it to Bale (49 MB rule). */
@@ -80,7 +81,9 @@ class ContentDelivery
         $update = [];
         if (! $content->title && ! empty($res['title'])) $update['title'] = $res['title'];
         if (! $content->body && ! empty($res['description'])) $update['body'] = $res['description'];
-        if (! $content->published_at && ! empty($res['published_at'])) $update['published_at'] = date('Y-m-d H:i:s', strtotime($res['published_at']));
+        if (! empty($res['published_at']) && (! $content->published_at || $content->published_at->copy()->setTimezone('UTC')->format('H:i:s') === '00:00:00')) {
+            $update['published_at'] = gmdate('Y-m-d H:i:s', strtotime($res['published_at']));
+        }
         if ($update) $content->update($update);
         return $rows;
     }
@@ -90,7 +93,6 @@ class ContentDelivery
     {
         $maxBytes = (int) (config('rmm.bale.max_upload_mb') * 1048576);
         $maxPhoto = (int) (config('rmm.bale.max_photo_mb') * 1048576);
-        $header = $this->header($content);
         $total = count($files);
         $sent = [];
 
@@ -99,11 +101,12 @@ class ContentDelivery
             $num = $total > 1 ? ' ('.($i + 1)."/{$total})" : '';
             $sizeLine = "📦 حجم: {$file->sizeMb()} MB{$num}";
             $linkLine = "⬇️ لینک دانلود (اعتبار ".config('rmm.link_days')." روز):\n{$link}";
-            $caption = ($i === 0 ? $header."\n\n" : '').$sizeLine."\n".$linkLine;
-
             $tooBig = $file->size > $maxBytes;
+            $note = $tooBig ? "ℹ️ فایل بزرگ‌تر از ".config('rmm.bale.max_upload_mb')." مگابایت است؛ فقط لینک ارسال شد." : '';
+            $caption = $this->caption($content, $i === 0, $sizeLine."\n".$linkLine, $note, $tooBig ? 4000 : (int) config('rmm.bale.caption_limit', 1024));
+
             if ($tooBig) {
-                $r = $this->bale->sendMessage($caption."\n\nℹ️ فایل بزرگ‌تر از ".config('rmm.bale.max_upload_mb')." مگابایت است؛ فقط لینک ارسال شد.", $chatId);
+                $r = $this->bale->sendMessage($caption, $chatId);
                 $file->update(['delivery' => 'link']);
                 $sent[] = ['file' => $file->id, 'method' => 'sendMessage', 'message_id' => $r['message_id'] ?? null];
                 continue;
@@ -166,17 +169,26 @@ class ContentDelivery
         });
     }
 
-    protected function header(Content $content): string
+    /**
+     * Caption: header (first item) with Jalali publish/send dates + size/link. The post text is the only part
+     * that gets truncated, so dates and links always survive the Bale caption limit.
+     */
+    public function caption(Content $content, bool $withHeader, string $tail, string $note = '', int $limit = 1024): string
     {
         $src = $content->source;
         $icon = $src->type === 'youtube' ? ($content->is_short ? '🎬 YouTube Shorts' : '▶️ YouTube') : '📸 Instagram';
         if ($src->isManual()) {
             $icon = '📥 '.$icon;
         }
-        $text = trim((string) ($content->title ?: $content->body));
-        $text = Str::limit(preg_replace('/\s+/u', ' ', $text), 300);
-        $date = $content->published_at?->timezone(config('rmm.timezone'))->format('Y-m-d H:i');
-        return trim("{$icon} | {$src->name}\n".($text !== '' ? $text."\n" : '').($date ? "🕒 {$date}\n" : '')."🔗 {$content->canonical_url}");
+        $dates = '📅 تاریخ انتشار: '.Jalali::published($content->published_at)."\n"
+            .'📤 تاریخ ارسال: '.Jalali::format(now());
+        $top = $withHeader ? "{$icon} | {$src->name}" : '';
+        $bottom = trim(($withHeader ? "🔗 {$content->canonical_url}\n" : '')."{$dates}\n\n{$tail}".($note !== '' ? "\n\n{$note}" : ''));
+        $text = $withHeader ? trim(preg_replace('/\s+/u', ' ', (string) ($content->title ?: $content->body))) : '';
+        $build = fn (string $t) => trim(($top !== '' ? $top."\n" : '').($t !== '' ? $t."\n" : '').$bottom);
+        $budget = min(300, $limit - mb_strlen($build('')) - 2);
+        $text = $budget > 10 ? Str::limit($text, $budget - 1, '…') : '';
+        return mb_substr($build($text), 0, $limit);
     }
 
     protected function niceName(Content $content, string $name): string

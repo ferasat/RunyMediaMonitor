@@ -50,5 +50,6 @@ return [
         'chat_id' => env('RMM_BALE_CHAT_ID'),
         'max_upload_mb' => (float) env('RMM_BALE_MAX_MB', 49),
         'max_photo_mb' => (float) env('RMM_BALE_MAX_PHOTO_MB', 9.5),
+        'caption_limit' => (int) env('RMM_BALE_CAPTION_LIMIT', 1024),
     ],
 ];
