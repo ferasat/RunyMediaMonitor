@@ -270,16 +270,17 @@ def ig_download(url: str, out_dir: Path, cookies: str | None) -> dict:
         msg = (p.stderr or "")[-600:]
         raise WorkerError(classify(msg), msg.strip() or "no media downloaded")
     desc = None
+    published = None
     for meta in sorted(out_dir.glob("*.json")):
         try:
-            desc = json.loads(meta.read_text(encoding="utf-8")).get("description")
+            kw = json.loads(meta.read_text(encoding="utf-8"))
+            desc = desc or kw.get("description")
+            published = published or _iso(kw.get("post_date") or kw.get("date"))
         except Exception:
             pass
         meta.unlink(missing_ok=True)
-        if desc:
-            break
     files = _collect(out_dir)
-    return {"ok": True, "description": (desc or "")[:2000], "files": files}
+    return {"ok": True, "description": (desc or "")[:2000], "published_at": published, "files": files}
 
 
 def ig_login(env_file: str, session_file: str, cookies_file: str, force: bool = False) -> dict:
