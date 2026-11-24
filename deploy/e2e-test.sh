@@ -1,5 +1,6 @@
 #!/bin/bash
 # RunyMediaMonitor end-to-end test (run as root on auto2). Prints no secrets.
+# Instagram only: SKIP_YT=1 rmm-e2e-test
 #   1) Bale bot reachability   2) YouTube small (<=49MB, file+link) and big (>49MB, link only)
 #   3) Instagram login (if no cookies yet) + baseline with the 2 newest posts delivered
 A=/opt/runymedia/bin/rmm-artisan
@@ -9,8 +10,10 @@ W=/var/www/runymedia/worker/rmm_worker.py
 SMALL=${SMALL:-62}; BIG=${BIG:-1}; IG_URL=${IG_URL:-https://www.instagram.com/nasa/}
 
 echo "== 1. Bale"; $A rmm:bale-test || { echo "STOP: Amin must press Start in @Insta_youtube_bot"; exit 2; }
-echo "== 2a. YouTube small #$SMALL"; $A rmm:send "$SMALL" --sync --force 2>&1 | grep -v psysh
-echo "== 2b. YouTube big #$BIG";   $A rmm:send "$BIG" --sync --force 2>&1 | grep -v psysh
+if [ -z "$SKIP_YT" ]; then
+  echo "== 2a. YouTube small #$SMALL"; $A rmm:send "$SMALL" --sync --force 2>&1 | grep -v psysh
+  echo "== 2b. YouTube big #$BIG";   $A rmm:send "$BIG" --sync --force 2>&1 | grep -v psysh
+fi
 echo "== 3. Instagram"
 if [ ! -s $S/instagram_cookies.txt ]; then
   runuser -u www-data -- env HOME=/var/lib/runymedia/home $PY $W ig-login --env-file $S/instagram.env \
