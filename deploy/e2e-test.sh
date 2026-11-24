@@ -15,10 +15,7 @@ if [ -z "$SKIP_YT" ]; then
   echo "== 2b. YouTube big #$BIG";   $A rmm:send "$BIG" --sync --force 2>&1 | grep -v psysh
 fi
 echo "== 3. Instagram"
-if [ ! -s $S/instagram_cookies.txt ]; then
-  runuser -u www-data -- env HOME=/var/lib/runymedia/home $PY $W ig-login --env-file $S/instagram.env \
-    --session-file $S/instagram.session --cookies-file $S/instagram_cookies.txt || { echo "STOP: Instagram login blocked (see code above)"; exit 3; }
-fi
+[ -s $S/instagram_cookies.txt ] || { echo "STOP: no Instagram cookies file (password login is disabled)"; exit 3; }
 runuser -u www-data -- env HOME=/var/lib/runymedia/home $PY $W ig-check --cookies-file $S/instagram_cookies.txt || { echo "STOP: Instagram cookies not accepted"; exit 3; }
 $A rmm:add "$IG_URL" --no-check
 ID=$($A tinker --execute='echo App\Models\Source::where("url", "'"$IG_URL"'")->value("id");' 2>/dev/null | grep -E '^[0-9]+$' | tail -1)
@@ -26,8 +23,8 @@ ID=$($A tinker --execute='echo App\Models\Source::where("url", "'"$IG_URL"'")->v
 $A tinker --execute='App\Models\Source::whereKey('"$ID"')->update(["baselined_at"=>null]);' >/dev/null 2>&1
 $A tinker --execute='print_r((new App\Jobs\SourceCheckJob(App\Models\Source::find('"$ID"'), 2))->handle(app(App\Infrastructure\Adapters\AdapterRegistry::class)));' 2>&1 | grep -v psysh
 echo "(the 2 newest Instagram posts were queued; the queue worker delivers them within ~1 min)"
-sleep 90
-$A tinker --execute='foreach (App\Models\Content::with("files")->whereIn("status",["sent","failed","downloading","pending"])->latest("id")->limit(6)->get() as $c) { echo $c->id," ",$c->status," ",$c->canonical_url," files=",$c->files->map(fn($f)=>$f->kind.":".$f->sizeMb()."MB:".$f->delivery)->implode(","),"  ",mb_substr((string)$c->error_message,0,120),"\n"; }' 2>&1 | grep -v psysh
+sleep 150
+$A tinker --execute='foreach (App\Models\Content::with("files")->whereIn("status",["sent","failed","downloading","pending"])->latest("id")->limit(6)->get() as $c) { echo $c->id," ",$c->status," ",$c->media_type," ",$c->canonical_url," files=",$c->files->map(fn($f)=>$f->kind.":".$f->sizeMb()."MB:".$f->delivery)->implode(",")," bale=",json_encode($c->metadata["bale"]["messages"] ?? [])," ",mb_substr((string)$c->error_message,0,120),"\n"; }' 2>&1 | grep -v psysh
 echo "== schedule"; $A schedule:list
 systemctl list-timers --no-legend | grep -E "runymedia|lego-renew-media"
 systemctl is-active runymedia-fpm runymedia-queue runymedia-scheduler

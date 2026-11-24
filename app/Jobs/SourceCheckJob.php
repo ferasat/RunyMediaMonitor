@@ -92,9 +92,29 @@ class SourceCheckJob implements ShouldQueue
             return $summary;
         } catch (\Throwable $e) {
             $source->update(['last_error' => mb_substr($e->getMessage(), 0, 1000)]);
+            self::alertIfAuthProblem($source, $e);
             $log->update(['status' => 'failed', 'error_message' => mb_substr($e->getMessage(), 0, 1000), 'finished_at' => now()]);
             Log::warning('rmm source check failed', ['source_id' => $source->id, 'error' => $e->getMessage()]);
             throw $e;
+        }
+    }
+
+    /** Instagram/YouTube session problems: alert on Bale right away, at most once per 12h per platform. */
+    public static function alertIfAuthProblem(Source $source, \Throwable $e): void
+    {
+        $code = $e instanceof \App\Services\WorkerException ? $e->errorCode : '';
+        if (! in_array($code, ['AUTH_REQUIRED', 'INSTAGRAM_CHECKPOINT', 'YOUTUBE_BOT_CHECK'], true)) {
+            return;
+        }
+        if (! \Illuminate\Support\Facades\Cache::add("rmm-auth-alert-{$source->type}", 1, now()->addHours(12))) {
+            return;
+        }
+        $what = $source->type === 'instagram'
+            ? "🔑 نشست/کوکی اینستاگرام منقضی یا نامعتبر شده ({$code}).\nلطفاً کوکی‌های جدید (cookies.txt) از مرورگری که در اکانت لاگین است بفرستید."
+            : "🤖 یوتیوب درخواست تأیید ربات داده ({$code}). ممکن است کوکی یوتیوب لازم باشد.";
+        try {
+            app(\App\Services\BaleClient::class)->sendMessage("{$what}\nمنبع: {$source->name}\n".mb_substr($e->getMessage(), 0, 300));
+        } catch (\Throwable) {
         }
     }
 

@@ -30,7 +30,9 @@ $A rmm:send 12 --sync   # (re)deliver content #12
 $A rmm:cleanup
 $A rmm:bale-test
 $A schedule:list
-# refresh Instagram session (after checkpoint / expiry):
+# Instagram uses browser-exported cookies only (password login from the server triggers checkpoints).
+# Refresh: copy a new Netscape cookies.txt to /var/lib/runymedia/secrets/instagram_cookies.txt (chmod 600, www-data).
+# Last resort only (refuses when cookies exist unless --force):
 sudo -u www-data /opt/runymedia/venv/bin/python /var/www/runymedia/worker/rmm_worker.py ig-login \
   --env-file /var/lib/runymedia/secrets/instagram.env \
   --session-file /var/lib/runymedia/secrets/instagram.session \

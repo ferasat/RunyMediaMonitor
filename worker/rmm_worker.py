@@ -200,7 +200,13 @@ def _ig_common(cookies: str | None) -> list[str]:
     return args
 
 
+def _require_cookies(cookies: str | None) -> None:
+    if not cookies or not Path(cookies).is_file() or Path(cookies).stat().st_size == 0:
+        raise WorkerError("AUTH_REQUIRED", "Instagram cookies file missing (RMM_IG_COOKIES)")
+
+
 def ig_discover(url: str, limit: int, cookies: str | None) -> dict:
+    _require_cookies(cookies)
     user = ig_username(url)
     items: dict[str, dict] = {}
     for kind in ("posts", "reels"):
@@ -250,8 +256,9 @@ def ig_discover(url: str, limit: int, cookies: str | None) -> dict:
 
 
 def ig_download(url: str, out_dir: Path, cookies: str | None) -> dict:
+    _require_cookies(cookies)
     out_dir.mkdir(parents=True, exist_ok=True)
-    p = _gallery_dl([*_ig_common(cookies), "-D", str(out_dir), "-f", "{num:>02}.{extension}",
+    p = _gallery_dl([*_ig_common(cookies), "--sleep", "1-3", "-D", str(out_dir), "-f", "{num:>02}.{extension}",
                      "--write-metadata", url], timeout=1200)
     files = _collect(out_dir)
     if not files:
@@ -270,8 +277,13 @@ def ig_download(url: str, out_dir: Path, cookies: str | None) -> dict:
     return {"ok": True, "description": (desc or "")[:2000], "files": files}
 
 
-def ig_login(env_file: str, session_file: str, cookies_file: str) -> dict:
+def ig_login(env_file: str, session_file: str, cookies_file: str, force: bool = False) -> dict:
+    """Manual, last-resort password login. Never used by the app. Refuses when cookies already exist
+    (password logins from the server trigger Instagram checkpoints)."""
     import instaloader
+
+    if Path(cookies_file).is_file() and Path(cookies_file).stat().st_size > 0 and not force:
+        raise WorkerError("COOKIES_PRESENT", "cookies file exists; password login disabled (use --force to override)")
 
     env = {}
     for line in Path(env_file).read_text(encoding="utf-8").splitlines():
@@ -371,6 +383,7 @@ def main() -> int:
     lg.add_argument("--env-file", required=True)
     lg.add_argument("--session-file", required=True)
     lg.add_argument("--cookies-file", required=True)
+    lg.add_argument("--force", action="store_true")
     ck = sub.add_parser("ig-check")
     ck.add_argument("--cookies-file", required=True)
     a = ap.parse_args()
@@ -382,7 +395,7 @@ def main() -> int:
             res = (yt_download(a.url, Path(a.out), a.max_res) if a.platform == "youtube"
                    else ig_download(a.url, Path(a.out), cookies))
         elif a.cmd == "ig-login":
-            res = ig_login(a.env_file, a.session_file, a.cookies_file)
+            res = ig_login(a.env_file, a.session_file, a.cookies_file, a.force)
         else:
             res = ig_check(a.cookies_file)
         out(res)

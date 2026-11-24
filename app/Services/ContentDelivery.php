@@ -85,6 +85,7 @@ class ContentDelivery
         $maxPhoto = (int) (config('rmm.bale.max_photo_mb') * 1048576);
         $header = $this->header($content);
         $total = count($files);
+        $sent = [];
 
         foreach (array_values($files) as $i => $file) {
             $link = $file->downloadUrl();
@@ -95,28 +96,38 @@ class ContentDelivery
 
             $tooBig = $file->size > $maxBytes;
             if ($tooBig) {
-                $this->bale->sendMessage($caption."\n\nℹ️ فایل بزرگ‌تر از ".config('rmm.bale.max_upload_mb')." مگابایت است؛ فقط لینک ارسال شد.", $chatId);
+                $r = $this->bale->sendMessage($caption."\n\nℹ️ فایل بزرگ‌تر از ".config('rmm.bale.max_upload_mb')." مگابایت است؛ فقط لینک ارسال شد.", $chatId);
                 $file->update(['delivery' => 'link']);
+                $sent[] = ['file' => $file->id, 'method' => 'sendMessage', 'message_id' => $r['message_id'] ?? null];
                 continue;
             }
             $path = $file->absolutePath();
+            $method = null;
             if ($file->kind === 'video') {
                 try {
-                    $this->bale->sendFile('sendVideo', 'video', $path, $caption, $chatId, array_filter([
+                    $method = 'sendVideo';
+                    $r = $this->bale->sendFile('sendVideo', 'video', $path, $caption, $chatId, array_filter([
                         'width' => $file->width, 'height' => $file->height, 'duration' => $file->duration,
                         'supports_streaming' => 'true',
                     ]));
                 } catch (\Throwable $e) {
                     Log::info('sendVideo failed, falling back to sendDocument', ['error' => $e->getMessage()]);
-                    $this->bale->sendFile('sendDocument', 'document', $path, $caption, $chatId);
+                    $method = 'sendDocument';
+                    $r = $this->bale->sendFile('sendDocument', 'document', $path, $caption, $chatId);
                 }
             } elseif ($file->kind === 'photo' && $file->size <= $maxPhoto) {
-                $this->bale->sendFile('sendPhoto', 'photo', $path, $caption, $chatId);
+                $method = 'sendPhoto';
+                $r = $this->bale->sendFile('sendPhoto', 'photo', $path, $caption, $chatId);
             } else {
-                $this->bale->sendFile('sendDocument', 'document', $path, $caption, $chatId);
+                $method = 'sendDocument';
+                $r = $this->bale->sendFile('sendDocument', 'document', $path, $caption, $chatId);
             }
             $file->update(['delivery' => 'file+link']);
+            $sent[] = ['file' => $file->id, 'method' => $method, 'message_id' => $r['message_id'] ?? null];
         }
+        $meta = $content->metadata ?? [];
+        $meta['bale'] = ['chat_id' => $chatId ?? $this->bale->chatId(), 'sent_at' => now()->toIso8601String(), 'messages' => $sent];
+        $content->update(['metadata' => $meta]);
     }
 
     protected function header(Content $content): string
