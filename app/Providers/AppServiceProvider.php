@@ -18,8 +18,8 @@ class AppServiceProvider extends ServiceProvider
         $this->app->singleton(AdapterRegistry::class, function () {
             $registry = new AdapterRegistry();
             $registry->register(new WebRssAdapter());
-            $registry->register(new YouTubeAdapter());
-            $registry->register(new InstagramAdapter());
+            $registry->register(new YouTubeAdapter(app(\App\Services\MediaWorker::class)));
+            $registry->register(new InstagramAdapter(app(\App\Services\MediaWorker::class)));
             $registry->register(new TelegramAdapter());
             $registry->register(new BaleAdapter());
             $registry->register(new XAdapter());
@@ -29,6 +29,9 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
-        //
+        if (str_starts_with((string) config('app.url'), 'https://')) {
+            \Illuminate\Support\Facades\URL::forceScheme('https');
+            \Illuminate\Support\Facades\URL::forceRootUrl(config('app.url'));
+        }
     }
 }

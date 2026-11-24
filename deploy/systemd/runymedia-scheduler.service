@@ -1,0 +1,15 @@
+[Unit]
+Description=RunyMediaMonitor scheduler (php artisan schedule:work)
+After=network-online.target
+
+[Service]
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/runymedia
+ExecStart=/usr/bin/php8.5 artisan schedule:work
+Restart=always
+RestartSec=5
+UMask=0027
+
+[Install]
+WantedBy=multi-user.target

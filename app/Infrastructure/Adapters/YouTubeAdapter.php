@@ -4,42 +4,31 @@ namespace App\Infrastructure\Adapters;
 
 use App\Domain\Monitoring\Contracts\SourceAdapter;
 use App\Models\Source;
+use App\Services\MediaWorker;
 
 class YouTubeAdapter implements SourceAdapter
 {
+    public function __construct(protected ?MediaWorker $worker = null) {}
+
     public function type(): string { return 'youtube'; }
 
     public function validate(Source $source): bool
     {
-        return ! empty($source->external_id) || ! empty($source->url);
+        return ! empty($source->url) || ! empty($source->external_id);
     }
 
     public function fetchMetadata(Source $source): array
     {
-        return [
-            'channel_id' => $source->external_id,
-            'title' => $source->name,
-        ];
+        return ['url' => $source->url, 'name' => $source->name];
     }
 
-    /** @return array<int, array<string, mixed>> */
+    /** Scan the newest pages (rmm.pages * page size) via the Python worker. */
     public function discoverNewContent(Source $source): array
     {
-        // Scaffold: returns mock items; real YouTube Data API v3 integration later.
-        return [
-            [
-                'external_id' => 'vid_' . uniqid(),
-                'title' => 'Sample YouTube Video',
-                'description' => 'Sample description',
-                'url' => 'https://www.youtube.com/watch?v=sample',
-                'published_at' => now()->toIso8601String(),
-                'media_type' => 'video',
-                'thumbnail' => 'https://i.ytimg.com/vi/sample/hqdefault.jpg',
-                'duration' => 120,
-                'is_short' => false,
-                'is_live' => false,
-            ],
-        ];
+        $limit = max(1, (int) config('rmm.pages')) * max(1, (int) config('rmm.youtube_page_size'));
+        $worker = $this->worker ?? app(MediaWorker::class);
+        $res = $worker->discover('youtube', $source->url ?: ("https://www.youtube.com/channel/".$source->external_id), $limit);
+        return $res['items'] ?? [];
     }
 
     public function fetchContentMetadata(array $item): array
@@ -49,7 +38,7 @@ class YouTubeAdapter implements SourceAdapter
 
     public function capabilities(): array
     {
-        return ['channel', 'playlist', 'video', 'shorts', 'live', 'thumbnail', 'transcript'];
+        return ['channel', 'videos', 'shorts', 'download'];
     }
 
     public function handleError(\Throwable $e): void

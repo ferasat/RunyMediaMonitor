@@ -1,18 +1,16 @@
 <?php
 
-use App\Jobs\SourceCheckJob;
-use App\Models\Source;
-use Illuminate\Foundation\Inspiring;
-use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
 
-Artisan::command('inspire', function () {
-    $this->comment(Inspiring::quote());
-})->purpose('Display an inspiring quote');
+// Check every active source at the configured times (RMM_CHECK_TIMES in RMM_TIMEZONE).
+foreach (config('rmm.check_times') as $time) {
+    Schedule::command('rmm:check')
+        ->dailyAt($time)
+        ->timezone(config('rmm.timezone'))
+        ->name('rmm-check-'.$time)
+        ->withoutOverlapping(60);
+}
 
-// Phase 1: dispatch due sources to the queue every minute.
-Schedule::call(function () {
-    Source::active()->get()->filter(fn ($s) => $s->isDue())->each(
-        fn ($s) => SourceCheckJob::dispatch($s)
-    );
-})->everyMinute()->name('dispatch-due-sources')->withoutOverlapping();
+// Retention: remove media older than RMM_RETENTION_DAYS.
+Schedule::command('rmm:cleanup')->hourly()->name('rmm-cleanup')->withoutOverlapping();
+Schedule::command('queue:prune-failed --hours=336')->daily();

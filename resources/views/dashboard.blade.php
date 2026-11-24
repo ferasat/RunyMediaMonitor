@@ -1,62 +1,69 @@
-<!DOCTYPE html>
-<html lang="fa" dir="rtl">
-<head>
-    <meta charset="UTF-8">
-    <title>RunyMediaMonitor — داشبورد</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-</head>
-<body class="bg-light">
-<div class="container py-4">
-    <h1 class="mb-4">RunyMediaMonitor</h1>
-    <p class="text-muted">سیستم پایش شبکه‌های اجتماعی و وب</p>
+@extends('layouts.app')
+@section('content')
+<div class="card">
+    <h3>افزودن منبع</h3>
+    <form method="post" action="/sources">
+        @csrf
+        <input type="url" name="url" placeholder="https://www.youtube.com/@channel یا https://www.instagram.com/page/" required style="width:45%">
+        <input type="text" name="name" placeholder="نام (اختیاری)">
+        <select name="send_latest" title="در اولین اسکن، چند پست آخر هم ارسال شود؟">
+            <option value="0">اسکن اول: فقط علامت‌گذاری (بدون ارسال)</option>
+            <option value="1">اسکن اول: ارسال ۱ پست آخر</option>
+            <option value="2">اسکن اول: ارسال ۲ پست آخر</option>
+        </select>
+        <button>افزودن</button>
+    </form>
+    <small>بررسی خودکار: هر روز ساعت {{ implode(' و ', config('rmm.check_times')) }} ({{ config('rmm.timezone') }}) — {{ config('rmm.pages') }} صفحه آخر هر منبع (ویدیوها + شورت‌ها / پست‌ها + ریلز). فایل‌ها {{ config('rmm.retention_days') }} روز نگهداری می‌شوند.</small>
+</div>
 
-    <div class="card mb-4">
-        <div class="card-body">
-            <h5>افزودن منبع جدید</h5>
-            <form method="POST" action="/sources" class="row g-2">
-                @csrf
-                <div class="col-md-3"><input name="type" class="form-control" placeholder="نوع (website/youtube/...)" required></div>
-                <div class="col-md-3"><input name="name" class="form-control" placeholder="نام" required></div>
-                <div class="col-md-4"><input name="url" class="form-control" placeholder="URL / Feed"></div>
-                <div class="col-md-2"><button class="btn btn-primary w-100">افزودن</button></div>
-            </form>
-        </div>
-    </div>
-
+<div class="card">
     <h3>منابع ({{ $sources->count() }})</h3>
-    <table class="table table-striped mb-4">
-        <thead><tr><th>نام</th><th>نوع</th><th>URL</th><th>فعال</th><th>آخرین بررسی</th></tr></thead>
-        <tbody>
+    <table>
+        <tr><th>#</th><th>نوع</th><th>نام / لینک</th><th>آخرین بررسی</th><th>تعداد</th><th>وضعیت</th><th></th></tr>
         @foreach($sources as $s)
-            <tr>
-                <td>{{ $s->name }}</td>
-                <td>{{ $s->type }}</td>
-                <td>{{ $s->url }}</td>
-                <td>{{ $s->is_active ? 'بله' : 'خیر' }}</td>
-                <td>{{ $s->last_checked_at }}</td>
-            </tr>
+        <tr>
+            <td>{{ $s->id }}</td>
+            <td>{{ $s->type }}</td>
+            <td>{{ $s->name }}<br><small><a href="{{ $s->url }}" target="_blank" rel="noopener">{{ $s->url }}</a></small>
+                @if($s->last_error)<br><small style="color:#b91c1c">{{ \Illuminate\Support\Str::limit($s->last_error, 160) }}</small>@endif</td>
+            <td><small>{{ $s->last_checked_at?->timezone(config('rmm.timezone'))->format('Y-m-d H:i') ?? '—' }}</small></td>
+            <td>{{ $s->contents_count }}</td>
+            <td>{!! $s->is_active ? '<span class="badge s-sent">فعال</span>' : '<span class="badge">غیرفعال</span>' !!}</td>
+            <td>
+                <form method="post" action="/sources/{{ $s->id }}/check" class="inline">@csrf <button>بررسی الان</button></form>
+                <form method="post" action="/sources/{{ $s->id }}/toggle" class="inline">@csrf <button class="gray">{{ $s->is_active ? 'توقف' : 'فعال‌سازی' }}</button></form>
+                <form method="post" action="/sources/{{ $s->id }}" class="inline" onsubmit="return confirm('حذف شود؟')">@csrf @method('DELETE') <button class="red">حذف</button></form>
+            </td>
+        </tr>
         @endforeach
-        </tbody>
-    </table>
-
-    <h3>محتوای رصد شده ({{ $contents->count() }})</h3>
-    <table class="table table-striped">
-        <thead><tr><th>عنوان</th><th>منبع</th><th>نوع</th><th>انتشار</th><th>لینک</th></tr></thead>
-        <tbody>
-        @foreach($contents as $c)
-            <tr>
-                <td>{{ $c->title }}</td>
-                <td>{{ $c->source->name ?? '-' }}</td>
-                <td>{{ $c->media_type }}</td>
-                <td>{{ $c->published_at }}</td>
-                <td>
-                    @if($c->media_url)<a href="{{ $c->media_url }}" download class="btn btn-sm btn-success">دانلود</a>@endif
-                    @if($c->canonical_url)<a href="{{ $c->canonical_url }}" target="_blank" class="btn btn-sm btn-outline-secondary">باز کردن</a>@endif
-                </td>
-            </tr>
-        @endforeach
-        </tbody>
     </table>
 </div>
-</body>
-</html>
+
+<div class="card">
+    <h3>پست‌های دریافتی (۱۰۰ مورد آخر)</h3>
+    <small>{{ $seenCount }} پست قدیمی در اسکن اولیه فقط علامت‌گذاری شده‌اند.</small>
+    <table>
+        <tr><th>#</th><th>منبع</th><th>عنوان</th><th>وضعیت</th><th>فایل‌ها</th><th></th></tr>
+        @foreach($contents as $c)
+        <tr>
+            <td>{{ $c->id }}</td>
+            <td>{{ $c->source?->name }}{{ $c->is_short ? ' (Shorts)' : '' }}</td>
+            <td><a href="{{ $c->canonical_url }}" target="_blank" rel="noopener">{{ \Illuminate\Support\Str::limit($c->title ?: $c->body ?: $c->external_id, 80) }}</a>
+                @if($c->error_message)<br><small style="color:#b91c1c">{{ \Illuminate\Support\Str::limit($c->error_message, 160) }}</small>@endif</td>
+            <td><span class="badge s-{{ $c->status }}">{{ $c->status }}</span><br><small>{{ $c->sent_at?->timezone(config('rmm.timezone'))->format('m-d H:i') }}</small></td>
+            <td>
+                @foreach($c->files as $f)
+                    @if($f->isAvailable())
+                        <a href="{{ $f->downloadUrl() }}">{{ $f->kind }} {{ $f->sizeMb() }}MB</a>
+                    @else
+                        <small>{{ $f->kind }} (منقضی)</small>
+                    @endif
+                    <br>
+                @endforeach
+            </td>
+            <td><form method="post" action="/contents/{{ $c->id }}/send" class="inline">@csrf <button class="gray">ارسال مجدد</button></form></td>
+        </tr>
+        @endforeach
+    </table>
+</div>
+@endsection

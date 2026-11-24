@@ -4,9 +4,12 @@ namespace App\Infrastructure\Adapters;
 
 use App\Domain\Monitoring\Contracts\SourceAdapter;
 use App\Models\Source;
+use App\Services\MediaWorker;
 
 class InstagramAdapter implements SourceAdapter
 {
+    public function __construct(protected ?MediaWorker $worker = null) {}
+
     public function type(): string { return 'instagram'; }
 
     public function validate(Source $source): bool
@@ -16,25 +19,16 @@ class InstagramAdapter implements SourceAdapter
 
     public function fetchMetadata(Source $source): array
     {
-        return ['username' => $source->username ?: $source->name];
+        return ['url' => $source->url, 'name' => $source->name];
     }
 
-    /** @return array<int, array<string, mixed>> */
+    /** Scan the newest pages (rmm.pages * page size) via the Python worker. */
     public function discoverNewContent(Source $source): array
     {
-        // Scaffold: mock items; real Instagram scraping/API later.
-        return [
-            [
-                'external_id' => 'ig_' . uniqid(),
-                'title' => 'پست اینستاگرام: ' . $source->name,
-                'description' => 'Caption نمونه',
-                'url' => $source->url,
-                'published_at' => now()->toIso8601String(),
-                'media_type' => 'image',
-                'thumbnail' => null,
-                'media_url' => 'https://example.com/media/sample.jpg',
-            ],
-        ];
+        $limit = max(1, (int) config('rmm.pages')) * max(1, (int) config('rmm.instagram_page_size'));
+        $worker = $this->worker ?? app(MediaWorker::class);
+        $res = $worker->discover('instagram', $source->url ?: ("https://www.instagram.com/".$source->username."/"), $limit);
+        return $res['items'] ?? [];
     }
 
     public function fetchContentMetadata(array $item): array
@@ -44,7 +38,7 @@ class InstagramAdapter implements SourceAdapter
 
     public function capabilities(): array
     {
-        return ['posts', 'reels', 'carousels', 'caption', 'metadata'];
+        return ['posts', 'reels', 'carousels', 'download'];
     }
 
     public function handleError(\Throwable $e): void

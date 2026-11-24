@@ -1,0 +1,17 @@
+[Unit]
+Description=RunyMediaMonitor queue worker (checks, downloads, Bale delivery)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/runymedia
+ExecStart=/usr/bin/php8.5 artisan queue:work --sleep=3 --tries=1 --timeout=1900 --max-time=3600
+Restart=always
+RestartSec=5
+Nice=5
+UMask=0027
+
+[Install]
+WantedBy=multi-user.target
