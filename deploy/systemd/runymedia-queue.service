@@ -7,6 +7,7 @@ Wants=network-online.target
 User=www-data
 Group=www-data
 WorkingDirectory=/var/www/runymedia
+Environment=PHP_INI_SCAN_DIR=:/opt/runymedia/php/conf.d
 ExecStart=/usr/bin/php8.5 artisan queue:work --sleep=3 --tries=1 --timeout=1900 --max-time=3600
 Restart=always
 RestartSec=5

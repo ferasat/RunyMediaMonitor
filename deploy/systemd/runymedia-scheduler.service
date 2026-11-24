@@ -6,6 +6,7 @@ After=network-online.target
 User=www-data
 Group=www-data
 WorkingDirectory=/var/www/runymedia
+Environment=PHP_INI_SCAN_DIR=:/opt/runymedia/php/conf.d
 ExecStart=/usr/bin/php8.5 artisan schedule:work
 Restart=always
 RestartSec=5
