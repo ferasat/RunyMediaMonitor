@@ -243,7 +243,10 @@ def ig_discover(url: str, limit: int, cookies: str | None) -> dict:
                 "kind": kind,
             })
             if msg[0] == 3:
-                it["count"] = max(it["count"] + 1, int(kw.get("count") or 0))
+                # a post can appear in both the posts and reels tabs: count distinct media numbers only
+                nums = it.setdefault("_nums", set())
+                nums.add(kw.get("num") or len(nums) + 1)
+                it["count"] = max(len(nums), int(kw.get("count") or 0))
                 is_video = bool(kw.get("video_url")) or kw.get("extension") == "mp4"
                 if it["count"] > 1:
                     it["media_type"] = "carousel"
@@ -251,6 +254,8 @@ def ig_discover(url: str, limit: int, cookies: str | None) -> dict:
                     it["media_type"] = "video"
         if kind == "posts":
             time.sleep(3)
+    for it in items.values():
+        it.pop("_nums", None)
     lst = sorted(items.values(), key=lambda x: x.get("published_at") or "", reverse=True)
     return {"ok": True, "channel": {"username": user}, "items": lst}
 
