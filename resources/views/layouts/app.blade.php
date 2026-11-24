@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="robots" content="noindex,nofollow">
     <title>رصدیار — RunyMediaMonitor</title>
+    @stack('head')
     <style>
         body{font-family:Tahoma,Vazirmatn,sans-serif;background:#f4f6fa;margin:0;color:#1f2937}
         header{background:#1e3a8a;color:#fff;padding:12px 20px;display:flex;justify-content:space-between;align-items:center}
@@ -28,7 +29,11 @@
 <header>
     <strong>رصدیار — پایش یوتیوب و اینستاگرام</strong>
     @auth
-        <form method="post" action="/logout" class="inline">@csrf <button class="gray">خروج</button></form>
+        <nav>
+            <a href="/" style="color:#fff;margin-left:14px">منابع و پایش</a>
+            <a href="/manual" style="color:#fff;margin-left:14px">دانلود با لینک</a>
+            <form method="post" action="/logout" class="inline">@csrf <button class="gray">خروج</button></form>
+        </nav>
     @endauth
 </header>
 <main>

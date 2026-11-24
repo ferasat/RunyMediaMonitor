@@ -11,6 +11,8 @@ ExecStart=/usr/sbin/php-fpm8.5 --nodaemonize --fpm-config /opt/runymedia/php/fpm
 ExecReload=/bin/kill -USR2 $MAINPID
 Restart=always
 RestartSec=5
+CPUQuota=100%
+MemoryMax=768M
 
 [Install]
 WantedBy=multi-user.target

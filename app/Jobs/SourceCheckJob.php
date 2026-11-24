@@ -26,7 +26,10 @@ class SourceCheckJob implements ShouldQueue
     public int $backoff = 300;
     public int $timeout = 900;
 
-    public function __construct(public Source $source, public ?int $sendLatest = null) {}
+    public function __construct(public Source $source, public ?int $sendLatest = null)
+    {
+        $this->onQueue('checks');
+    }
 
     public function handle(AdapterRegistry $registry): array
     {
@@ -89,6 +92,9 @@ class SourceCheckJob implements ShouldQueue
             $log->update(['status' => 'success', 'finished_at' => now(),
                 'items_discovered' => count($items), 'items_new' => count($new)]);
             Log::info('rmm source checked', ['source_id' => $source->id] + $summary);
+            if ($source->type === 'instagram' && ! app()->runningUnitTests()) {
+                sleep(max(0, (int) config('rmm.instagram_pause_seconds')));
+            }
             return $summary;
         } catch (\Throwable $e) {
             $source->update(['last_error' => mb_substr($e->getMessage(), 0, 1000)]);

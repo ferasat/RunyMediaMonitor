@@ -49,6 +49,7 @@ class ContentDelivery
     public function download(Content $content)
     {
         $root = rtrim(config('rmm.media_root'), '/');
+        $this->guardDisk($root);
         $rel = $content->source_id.'/'.$content->id.'-'.Str::random(6);
         $dir = $root.'/'.$rel;
         File::ensureDirectoryExists($dir, 0750);
@@ -130,10 +131,42 @@ class ContentDelivery
         $content->update(['metadata' => $meta]);
     }
 
+    /** Refuse to download when the disk is nearly full or the media dir is over its cap; alert Bale (throttled). */
+    public function guardDisk(string $root): void
+    {
+        File::ensureDirectoryExists($root, 0750);
+        $freeGb = @disk_free_space($root) / 1073741824;
+        $usedGb = $this->dirSizeGb($root);
+        $minFree = (float) config('rmm.min_free_gb');
+        $maxMedia = (float) config('rmm.max_media_gb');
+        if (($minFree > 0 && $freeGb < $minFree) || ($maxMedia > 0 && $usedGb > $maxMedia)) {
+            $msg = sprintf('فضای دیسک کافی نیست (آزاد: %.1f GB، حداقل: %.0f GB؛ حجم رسانه‌ها: %.1f GB از %.0f GB). دانلودها موقتاً متوقف شد.',
+                $freeGb, $minFree, $usedGb, $maxMedia);
+            if (\Illuminate\Support\Facades\Cache::add('rmm-disk-alert', 1, now()->addHours(6))) {
+                try { $this->bale->sendMessage('💾 '.$msg); } catch (\Throwable) {}
+            }
+            throw new WorkerException('DISK_LOW', $msg);
+        }
+    }
+
+    protected function dirSizeGb(string $root): float
+    {
+        return \Illuminate\Support\Facades\Cache::remember('rmm-media-size', 300, function () use ($root) {
+            $bytes = 0;
+            foreach (new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($root, \FilesystemIterator::SKIP_DOTS)) as $f) {
+                $bytes += $f->getSize();
+            }
+            return $bytes / 1073741824;
+        });
+    }
+
     protected function header(Content $content): string
     {
         $src = $content->source;
         $icon = $src->type === 'youtube' ? ($content->is_short ? '🎬 YouTube Shorts' : '▶️ YouTube') : '📸 Instagram';
+        if ($src->isManual()) {
+            $icon = '📥 '.$icon;
+        }
         $text = trim((string) ($content->title ?: $content->body));
         $text = Str::limit(preg_replace('/\s+/u', ' ', $text), 300);
         $date = $content->published_at?->timezone(config('rmm.timezone'))->format('Y-m-d H:i');

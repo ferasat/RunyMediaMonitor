@@ -13,8 +13,9 @@ class DashboardController extends Controller
     public function index()
     {
         return view('dashboard', [
-            'sources' => Source::withCount('contents')->latest()->get(),
-            'contents' => Content::with(['source', 'files'])->whereNot('status', 'seen')->latest()->limit(100)->get(),
+            'sources' => Source::monitored()->withCount('contents')->latest()->get(),
+            'contents' => Content::with(['source', 'files'])->whereNot('status', 'seen')
+                ->whereHas('source', fn ($q) => $q->monitored())->latest()->limit(100)->get(),
             'seenCount' => Content::where('status', 'seen')->count(),
         ]);
     }

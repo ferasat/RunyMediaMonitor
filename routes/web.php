@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\ManualDownloadController;
 use App\Http\Controllers\MediaDownloadController;
 use Illuminate\Support\Facades\Route;
 
@@ -20,4 +21,6 @@ Route::middleware('auth')->group(function () {
     Route::post('/sources/{source}/toggle', [DashboardController::class, 'toggle']);
     Route::delete('/sources/{source}', [DashboardController::class, 'destroy']);
     Route::post('/contents/{content}/send', [DashboardController::class, 'send']);
+    Route::get('/manual', [ManualDownloadController::class, 'index'])->name('manual');
+    Route::post('/manual', [ManualDownloadController::class, 'store'])->middleware('throttle:20,1');
 });

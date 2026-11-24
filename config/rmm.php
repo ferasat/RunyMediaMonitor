@@ -14,6 +14,12 @@ return [
     // Number of newest items to still deliver on first add (0 = none).
     'initial_send' => (int) env('RMM_INITIAL_SEND', 0),
 
+    // Load safety
+    'source_spacing_seconds' => (int) env('RMM_SOURCE_SPACING', 90),   // gap between scheduled source checks
+    'instagram_pause_seconds' => (int) env('RMM_IG_PAUSE', 8),         // pause after each Instagram job
+    'min_free_gb' => (float) env('RMM_MIN_FREE_GB', 15),               // skip downloads below this free disk space
+    'max_media_gb' => (float) env('RMM_MAX_MEDIA_GB', 60),             // skip downloads when media dir exceeds this
+
     'max_resolution' => (int) env('RMM_MAX_RES', 720),
     'retention_days' => (int) env('RMM_RETENTION_DAYS', 7),
     'link_days' => (int) env('RMM_LINK_DAYS', 7),

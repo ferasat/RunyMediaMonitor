@@ -1,5 +1,5 @@
 [Unit]
-Description=RunyMediaMonitor queue worker (checks, downloads, Bale delivery)
+Description=RunyMediaMonitor queue worker (single worker: manual > downloads > checks, one job at a time)
 After=network-online.target
 Wants=network-online.target
 
@@ -8,10 +8,18 @@ User=www-data
 Group=www-data
 WorkingDirectory=/var/www/runymedia
 Environment=PHP_INI_SCAN_DIR=:/opt/runymedia/php/conf.d
-ExecStart=/usr/bin/php8.5 artisan queue:work --sleep=3 --tries=1 --timeout=1900 --max-time=3600
+# One process => at most one check or one download (yt-dlp/gallery-dl/ffmpeg) runs at any time.
+ExecStart=/usr/bin/php8.5 artisan queue:work --queue=manual,downloads,checks,default --sleep=3 --tries=1 --timeout=1900 --max-time=3600 --memory=384
 Restart=always
-RestartSec=5
-Nice=5
+RestartSec=10
+# Load safety (auto2 is shared with other services)
+Nice=10
+CPUSchedulingPolicy=batch
+IOSchedulingClass=idle
+CPUQuota=150%
+MemoryHigh=1G
+MemoryMax=1536M
+TasksMax=128
 UMask=0027
 
 [Install]

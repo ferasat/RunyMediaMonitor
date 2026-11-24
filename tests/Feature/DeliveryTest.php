@@ -31,6 +31,7 @@ class DeliveryTest extends TestCase
             'rmm.bale.token_file' => null,
             'rmm.bale.chat_id' => '1',
             'rmm.bale.max_upload_mb' => 1, // 1 MB threshold for the test
+            'rmm.min_free_gb' => 0,
         ]);
     }
 

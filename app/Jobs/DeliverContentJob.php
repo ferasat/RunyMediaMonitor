@@ -17,10 +17,19 @@ class DeliverContentJob implements ShouldQueue
     public int $tries = 1;          // attempts are tracked on the content row (max 3, retried on next check)
     public int $timeout = 1850;
 
-    public function __construct(public Content $content) {}
+    public function __construct(public Content $content)
+    {
+        $this->onQueue($content->source?->isManual() ? 'manual' : 'downloads');
+    }
 
     public function handle(ContentDelivery $delivery): void
     {
-        $delivery->deliver($this->content->fresh());
+        try {
+            $delivery->deliver($this->content->fresh());
+        } finally {
+            if ($this->content->source?->type === 'instagram' && ! app()->runningUnitTests()) {
+                sleep(max(0, (int) config('rmm.instagram_pause_seconds')));
+            }
+        }
     }
 }

@@ -15,14 +15,15 @@ class RmmCheck extends Command
     {
         $sources = $this->argument('source')
             ? Source::whereKey($this->argument('source'))->get()
-            : Source::active()->whereIn('type', ['youtube', 'instagram', 'website'])->get();
+            : Source::active()->monitored()->whereIn('type', ['youtube', 'instagram', 'website'])->orderBy('id')->get();
+        $gap = max(0, (int) config('rmm.source_spacing_seconds'));
         foreach ($sources as $i => $s) {
             if ($this->option('sync')) {
                 $r = (new SourceCheckJob($s))->handle(app(\App\Infrastructure\Adapters\AdapterRegistry::class));
                 $this->info("#{$s->id} {$s->name}: found={$r['found']} queued={$r['queued']}".($r['baseline'] ? ' (baseline)' : ''));
             } else {
-                // stagger sources a little to be gentle with Instagram/YouTube
-                SourceCheckJob::dispatch($s)->delay(now()->addSeconds($i * 20));
+                // spread the checks over time (RMM_SOURCE_SPACING seconds apart) to keep load and request rate low
+                SourceCheckJob::dispatch($s)->delay(now()->addSeconds($i * $gap));
                 $this->line("queued check for #{$s->id} {$s->name}");
             }
         }

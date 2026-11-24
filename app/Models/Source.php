@@ -34,6 +34,27 @@ class Source extends Model
         return $query->where('is_active', true);
     }
 
+    public const MANUAL_URL_PREFIX = 'manual://';
+
+    /** Hidden per-platform source that owns manual (pasted-link) downloads. */
+    public static function manualFor(string $type): self
+    {
+        return static::withTrashed()->firstOrCreate(['url' => self::MANUAL_URL_PREFIX.$type], [
+            'type' => $type, 'name' => 'دانلود دستی', 'is_active' => false,
+            'baselined_at' => now(), 'configuration' => ['manual' => true],
+        ]);
+    }
+
+    public function isManual(): bool
+    {
+        return str_starts_with((string) $this->url, self::MANUAL_URL_PREFIX);
+    }
+
+    public function scopeMonitored($query)
+    {
+        return $query->where(fn ($q) => $q->whereNull('url')->orWhere('url', 'not like', self::MANUAL_URL_PREFIX.'%'));
+    }
+
     public function contents()
     {
         return $this->hasMany(Content::class);

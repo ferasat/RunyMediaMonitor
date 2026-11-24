@@ -10,6 +10,9 @@ Environment=PHP_INI_SCAN_DIR=:/opt/runymedia/php/conf.d
 ExecStart=/usr/bin/php8.5 artisan schedule:work
 Restart=always
 RestartSec=5
+Nice=10
+CPUQuota=50%
+MemoryMax=256M
 UMask=0027
 
 [Install]
