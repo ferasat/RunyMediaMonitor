@@ -237,11 +237,12 @@ def ig_discover(url: str, limit: int, cookies: str | None) -> dict:
                 "kind": kind,
             })
             if msg[0] == 3:
-                it["count"] += 1
-                if kw.get("video_url") or (kw.get("extension") in ("mp4",)):
-                    it["media_type"] = "video" if it["count"] == 1 else "carousel"
-                elif it["count"] > 1:
+                it["count"] = max(it["count"] + 1, int(kw.get("count") or 0))
+                is_video = bool(kw.get("video_url")) or kw.get("extension") == "mp4"
+                if it["count"] > 1:
                     it["media_type"] = "carousel"
+                elif is_video:
+                    it["media_type"] = "video"
         if kind == "posts":
             time.sleep(3)
     lst = sorted(items.values(), key=lambda x: x.get("published_at") or "", reverse=True)

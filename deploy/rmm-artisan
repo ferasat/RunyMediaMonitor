@@ -2,5 +2,5 @@
 # Run RunyMediaMonitor artisan as www-data with the bundled sqlite extension.
 export PHP_INI_SCAN_DIR=:/opt/runymedia/php/conf.d
 cd /var/www/runymedia
-if [ "$(id -u)" = "0" ]; then exec runuser -u www-data -- env PHP_INI_SCAN_DIR=$PHP_INI_SCAN_DIR /usr/bin/php8.5 artisan "$@"; fi
+if [ "$(id -u)" = "0" ]; then exec runuser -u www-data -- env HOME=/var/lib/runymedia/home PHP_INI_SCAN_DIR=$PHP_INI_SCAN_DIR /usr/bin/php8.5 artisan "$@"; fi
 exec /usr/bin/php8.5 artisan "$@"

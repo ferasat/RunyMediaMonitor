@@ -134,6 +134,8 @@ class ContentDelivery
         $ext = pathinfo($name, PATHINFO_EXTENSION);
         $base = Str::slug(Str::limit($content->source->name, 30, ''), '_') ?: 'media';
         $suffix = pathinfo($name, PATHINFO_FILENAME);
-        return "{$base}_{$content->external_id}_{$suffix}".($ext ? ".{$ext}" : '');
+        $id = $content->external_id ?: (string) $content->id;
+        $stem = $suffix === $id ? "{$base}_{$id}" : "{$base}_{$id}_{$suffix}";
+        return $stem.($ext ? ".{$ext}" : '');
     }
 }
